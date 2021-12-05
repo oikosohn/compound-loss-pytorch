@@ -8,6 +8,6 @@ Compound loss for pytorch
 
 
 ### unified_focal_loss_pytorch
-- PyTorch implementation of [Unified Focal Loss](https://arxiv.org/abs/2102.04525)
+- PyTorch implementation of [Unified Focal loss](https://arxiv.org/abs/2102.04525)
     - I just converted the code in [Official tensorflow repository](https://github.com/mlyg/unified-focal-loss) into a PyTorch.
 - Focal Tversky loss (symmetric and asymmetric), Focal loss (symmetric and asymmetric), Unified Focal loss (symmetric and asymmetric)
