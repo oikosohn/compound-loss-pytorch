@@ -183,8 +183,8 @@ class SymmetricUnifiedFocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, y_pred, y_true):
-      symmetric_ftl = SymmetricUnifiedFocalLoss(delta=self.delta, gamma=self.gamma)(y_true,y_pred)
-      symmetric_fl = SymmetricFocalLoss(delta=self.delta, gamma=self.gamma)(y_true,y_pred)
+      symmetric_ftl = SymmetricUnifiedFocalLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
+      symmetric_fl = SymmetricFocalLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
       if self.weight is not None:
         return (self.weight * symmetric_ftl) + ((1-self.weight) * symmetric_fl)  
       else:
@@ -212,10 +212,10 @@ class AsymmetricUnifiedFocalLoss(nn.Module):
 
     def forward(self, y_pred, y_true):
       # Obtain Asymmetric Focal Tversky loss
-      asymmetric_ftl = AsymmetricFocalTverskyLoss(delta=self.delta, gamma=self.gamma)(y_true,y_pred)
+      asymmetric_ftl = AsymmetricFocalTverskyLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
 
       # Obtain Asymmetric Focal loss
-      asymmetric_fl = AsymmetricFocalLoss(delta=self.delta, gamma=self.gamma)(y_true,y_pred)
+      asymmetric_fl = AsymmetricFocalLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
 
       # return weighted sum of Asymmetrical Focal loss and Asymmetric Focal Tversky loss
       if self.weight is not None:
