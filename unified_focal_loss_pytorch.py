@@ -24,6 +24,8 @@ class SymmetricFocalLoss(nn.Module):
         controls weight given to false positive and false negatives, by default 0.7
     gamma : float, optional
         Focal Tversky loss' focal parameter controls degree of down-weighting of easy examples, by default 2.0
+    epsilon : float, optional
+        clip values to prevent division by zero error
     """
     def __init__(self, delta=0.7, gamma=2., epsilon=1e-07):
         super(SymmetricFocalLoss, self).__init__()
@@ -57,6 +59,8 @@ class AsymmetricFocalLoss(nn.Module):
         controls weight given to false positive and false negatives, by default 0.25
     gamma : float, optional
         Focal Tversky loss' focal parameter controls degree of down-weighting of easy examples, by default 2.0
+    epsilon : float, optional
+        clip values to prevent division by zero error
     """
     def __init__(self, delta=0.25, gamma=2., epsilon=1e-07):
         super(AsymmetricFocalLoss, self).__init__()
@@ -92,6 +96,8 @@ class SymmetricFocalTverskyLoss(nn.Module):
         focal parameter controls degree of down-weighting of easy examples, by default 0.75
     smooth : float, optional
         smooithing constant to prevent division by 0 errors, by default 0.000001
+    epsilon : float, optional
+        clip values to prevent division by zero error
     """
     def __init__(self, delta=0.7, gamma=0.75, epsilon=1e-07):
         super(SymmetricFocalTverskyLoss, self).__init__()
@@ -100,7 +106,6 @@ class SymmetricFocalTverskyLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
-        # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         axis = identify_axis(y_true.size())
         
@@ -110,7 +115,7 @@ class SymmetricFocalTverskyLoss(nn.Module):
         fp = torch.sum((1-y_true) * y_pred, axis=axis)
         dice_class = (tp + self.epsilon)/(tp + self.delta*fn + (1-self.delta)*fp + self.epsilon)
 
-        #calculate losses separately for each class, only enhancing foreground class / # 수정해야함
+        #calculate losses separately for each class, enhancing both classes
         back_dice = (1-dice_class[:,0]) * torch.pow(1-dice_class[:,0], -self.gamma)
         fore_dice = (1-dice_class[:,1]) * torch.pow(1-dice_class[:,1], -self.gamma) 
 
@@ -129,6 +134,8 @@ class AsymmetricFocalTverskyLoss(nn.Module):
         focal parameter controls degree of down-weighting of easy examples, by default 0.75
     smooth : float, optional
         smooithing constant to prevent division by 0 errors, by default 0.000001
+    epsilon : float, optional
+        clip values to prevent division by zero error
     """
     def __init__(self, delta=0.7, gamma=0.75, epsilon=1e-07):
         super(AsymmetricFocalTverskyLoss, self).__init__()
@@ -166,6 +173,8 @@ class SymmetricUnifiedFocalLoss(nn.Module):
         controls weight given to each class, by default 0.6
     gamma : float, optional
         focal parameter controls the degree of background suppression and foreground enhancement, by default 0.5
+    epsilon : float, optional
+        clip values to prevent division by zero error
     """
     def __init__(self, weight=0.5, delta=0.6, gamma=0.5):
         super(SymmetricUnifiedFocalLoss, self).__init__()
@@ -192,6 +201,8 @@ class AsymmetricUnifiedFocalLoss(nn.Module):
         controls weight given to each class, by default 0.6
     gamma : float, optional
         focal parameter controls the degree of background suppression and foreground enhancement, by default 0.5
+    epsilon : float, optional
+        clip values to prevent division by zero error
     """
     def __init__(self, weight=0.5, delta=0.6, gamma=0.2):
         super(AsymmetricUnifiedFocalLoss, self).__init__()
