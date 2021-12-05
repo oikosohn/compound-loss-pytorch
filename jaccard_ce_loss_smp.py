@@ -7,7 +7,6 @@ class JaccardCELoss(smp.utils.base.Loss):
         self.alpha = alpha
         self.beta = beta
 
-		# weight 추가할 경우 class에 할당
         self.jaccardloss=smp.losses.JaccardLoss(mode='multiclass')
         self.jaccardloss.__name__ = 'jaccard_loss'
 
