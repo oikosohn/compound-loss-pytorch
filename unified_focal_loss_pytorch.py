@@ -39,7 +39,7 @@ class SymmetricFocalLoss(nn.Module):
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
 
-        #calculate losses separately for each class
+        # Calculate losses separately for each class
         back_ce = torch.pow(1 - y_pred[:,:,:,0], self.gamma) * cross_entropy[:,:,:,0]
         back_ce =  (1 - self.delta) * back_ce
 
@@ -74,7 +74,7 @@ class AsymmetricFocalLoss(nn.Module):
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
         
-	    #calculate losses separately for each class, only suppressing background class
+	# Calculate losses separately for each class, only suppressing background class
         back_ce = torch.pow(1 - y_pred[:,:,:,0], self.gamma) * cross_entropy[:,:,:,0]
         back_ce =  (1 - self.delta) * back_ce
 
@@ -115,7 +115,7 @@ class SymmetricFocalTverskyLoss(nn.Module):
         fp = torch.sum((1-y_true) * y_pred, axis=axis)
         dice_class = (tp + self.epsilon)/(tp + self.delta*fn + (1-self.delta)*fp + self.epsilon)
 
-        #calculate losses separately for each class, enhancing both classes
+        # Calculate losses separately for each class, enhancing both classes
         back_dice = (1-dice_class[:,0]) * torch.pow(1-dice_class[:,0], -self.gamma)
         fore_dice = (1-dice_class[:,1]) * torch.pow(1-dice_class[:,1], -self.gamma) 
 
@@ -154,7 +154,7 @@ class AsymmetricFocalTverskyLoss(nn.Module):
         fp = torch.sum((1-y_true) * y_pred, axis=axis)
         dice_class = (tp + self.epsilon)/(tp + self.delta*fn + (1-self.delta)*fp + self.epsilon)
 
-        #calculate losses separately for each class, only enhancing foreground class
+        # Calculate losses separately for each class, only enhancing foreground class
         back_dice = (1-dice_class[:,0]) 
         fore_dice = (1-dice_class[:,1]) * torch.pow(1-dice_class[:,1], -self.gamma) 
 
@@ -217,7 +217,7 @@ class AsymmetricUnifiedFocalLoss(nn.Module):
       # Obtain Asymmetric Focal loss
       asymmetric_fl = AsymmetricFocalLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
 
-      # return weighted sum of Asymmetrical Focal loss and Asymmetric Focal Tversky loss
+      # Return weighted sum of Asymmetrical Focal loss and Asymmetric Focal Tversky loss
       if self.weight is not None:
         return (self.weight * asymmetric_ftl) + ((1-self.weight) * asymmetric_fl)  
       else:
