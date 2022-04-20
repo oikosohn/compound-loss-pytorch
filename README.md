@@ -14,3 +14,29 @@ Losses
 - Focal loss (symmetric and asymmetric)
 - Focal Tversky loss (symmetric and asymmetric)
 - Unified Focal loss (symmetric and asymmetric)
+
+## References
+```bibtex
+@misc{https://doi.org/10.48550/arxiv.1806.03510,
+  doi = {10.48550/ARXIV.1806.03510},
+  url = {https://arxiv.org/abs/1806.03510},
+  author = {Seferbekov, Selim S. and Iglovikov, Vladimir I. and Buslaev, Alexander V. and Shvets, Alexey A.},
+  keywords = {Computer Vision and Pattern Recognition (cs.CV), FOS: Computer and information sciences, FOS: Computer and information sciences},
+  title = {Feature Pyramid Network for Multi-Class Land Segmentation},
+  publisher = {arXiv},
+  year = {2018},
+  copyright = {Creative Commons Attribution 4.0 International}
+}
+
+@misc{https://doi.org/10.48550/arxiv.2102.04525,
+  doi = {10.48550/ARXIV.2102.04525},
+  url = {https://arxiv.org/abs/2102.04525},
+  author = {Yeung, Michael and Sala, Evis and Schönlieb, Carola-Bibiane and Rundo, Leonardo},
+  keywords = {Image and Video Processing (eess.IV), Computer Vision and Pattern Recognition (cs.CV), Machine Learning (cs.LG), FOS: Electrical engineering, electronic engineering, information engineering, FOS: Electrical engineering, electronic engineering, information engineering, FOS: Computer and information sciences, FOS: Computer and information sciences, I.4.6; J.3},
+  title = {Unified Focal loss: Generalising Dice and cross entropy-based losses to handle class imbalanced medical image segmentation},
+  publisher = {arXiv},
+  year = {2021},
+  copyright = {arXiv.org perpetual, non-exclusive license}
+}
+
+```
