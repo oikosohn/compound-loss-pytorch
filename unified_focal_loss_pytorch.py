@@ -183,7 +183,7 @@ class SymmetricUnifiedFocalLoss(nn.Module):
         self.gamma = gamma
 
     def forward(self, y_pred, y_true):
-      symmetric_ftl = SymmetricUnifiedFocalLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
+      symmetric_ftl = SymmetricFocalTverskyLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
       symmetric_fl = SymmetricFocalLoss(delta=self.delta, gamma=self.gamma)(y_pred, y_true)
       if self.weight is not None:
         return (self.weight * symmetric_ftl) + ((1-self.weight) * symmetric_fl)  
