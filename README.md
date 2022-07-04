@@ -15,6 +15,9 @@ Losses
 - Focal Tversky loss (symmetric and asymmetric)
 - Unified Focal loss (symmetric and asymmetric)
 
+Todo
+- [ ] Fix [[Issue #3] Incompatible pytorch tensor shape](https://github.com/oikosohn/compound-loss-pytorch/issues/3)
+
 ## References
 ```bibtex
 @misc{https://doi.org/10.48550/arxiv.1806.03510,
