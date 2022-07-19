@@ -35,15 +35,14 @@ class SymmetricFocalLoss(nn.Module):
 
     def forward(self, y_pred, y_true):
 
-        axis = identify_axis(y_true.size())  
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
 
         # Calculate losses separately for each class
-        back_ce = torch.pow(1 - y_pred[:,:,:,0], self.gamma) * cross_entropy[:,:,:,0]
+        back_ce = torch.pow(1 - y_pred[:,0,:,:], self.gamma) * cross_entropy[:,0,:,:]
         back_ce =  (1 - self.delta) * back_ce
 
-        fore_ce = torch.pow(1 - y_pred[:,:,:,1], self.gamma) * cross_entropy[:,:,:,1]
+        fore_ce = torch.pow(1 - y_pred[:,1,:,:], self.gamma) * cross_entropy[:,1,:,:]
         fore_ce = self.delta * fore_ce
 
         loss = torch.mean(torch.sum(torch.stack([back_ce, fore_ce], axis=-1), axis=-1))
@@ -62,23 +61,21 @@ class AsymmetricFocalLoss(nn.Module):
     epsilon : float, optional
         clip values to prevent division by zero error
     """
-    def __init__(self, delta=0.25, gamma=2., epsilon=1e-07):
+    def __init__(self, delta=0.7, gamma=2., epsilon=1e-07):
         super(AsymmetricFocalLoss, self).__init__()
         self.delta = delta
         self.gamma = gamma
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
-
-        axis = identify_axis(y_true.size())  
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
         
 	# Calculate losses separately for each class, only suppressing background class
-        back_ce = torch.pow(1 - y_pred[:,:,:,0], self.gamma) * cross_entropy[:,:,:,0]
+        back_ce = torch.pow(1 - y_pred[:,0,:,:], self.gamma) * cross_entropy[:,0,:,:]
         back_ce =  (1 - self.delta) * back_ce
 
-        fore_ce = cross_entropy[:,:,:,1]
+        fore_ce = cross_entropy[:,1,:,:]
         fore_ce = self.delta * fore_ce
 
         loss = torch.mean(torch.sum(torch.stack([back_ce, fore_ce], axis=-1), axis=-1))

@@ -17,6 +17,10 @@ Losses
 
 Todo
 - [ ] Fix [[Issue #3] Incompatible pytorch tensor shape](https://github.com/oikosohn/compound-loss-pytorch/issues/3)
+  - [X] SymmetricFocalLoss
+  - [X] AsymmetricFocalLoss
+  - [ ] SymmetricFocalTverskyLoss
+  - [ ] AsymmetricFocalTverskyLoss
 
 ## References
 ```bibtex
