@@ -7,10 +7,10 @@ import torch.nn as nn
 
 def identify_axis(shape):
     # Three dimensional
-    if len(shape) == 5 : return [1,2,3]
+    if len(shape) == 5 : return [2,3,4]
 
     # Two dimensional
-    elif len(shape) == 4 : return [1,2]
+    elif len(shape) == 4 : return [2,3]
     
     # Exception - Unknown
     else : raise ValueError('Metric: Shape of tensor is neither 2D or 3D.')
