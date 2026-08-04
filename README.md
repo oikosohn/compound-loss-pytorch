@@ -41,8 +41,10 @@ wrong number rather than raising:
 - **Logits instead of probabilities** - clamped to `[epsilon, 1-epsilon]`. Apply
   `torch.softmax(logits, dim=1)` first.
 - **`uint8` masks** - `-y_true` wraps 1 to 255, so anything with a cross-entropy term is
-  wrong. The Tversky losses are unaffected. Cast masks to float or a signed integer dtype;
-  `bool` raises rather than failing quietly.
+  wrong. The Tversky losses never negate `y_true` and are unaffected. Cast masks to float
+  or a signed integer dtype; `bool` raises rather than failing quietly. This is the one
+  place the port is quieter than the original, which refuses to mix `uint8` with `float32`
+  at all.
 
 And two numerical edges, both matching the original:
 
@@ -51,10 +53,16 @@ And two numerical edges, both matching the original:
 - **`epsilon=0`** makes `(1-d) * (1-d)**-gamma` evaluate `0 * inf` at a perfect Dice score,
   giving NaN.
 
-### Differences from the tensorflow original
-- Tensors are channel-first, which fixes issue #3. The focal losses accept 3D volumes too,
-  which the original's hardcoded slicing does not.
-- `AsymmetricUnifiedFocalLoss` defaults to `gamma=0.5`, matching the original (it was `0.2`).
+### Relationship to the tensorflow original
+The only intentional change is the tensor layout. PyTorch convolutions emit `(N, C, H, W)`
+where Keras emits `(N, H, W, C)`, so the spatial axes move from `[1,2]` to `[2,3]` and the
+class slice from `y_pred[:,:,:,0]` to `y_pred[:,0]`. Both express the same thing; keeping
+the original's literal indices is what produced issue #3. As a side effect the focal losses
+work on 3D volumes, which the original's hardcoded slicing does not.
+
+`AsymmetricUnifiedFocalLoss` had `gamma=0.2` in this file from its first commit. The
+original and the paper both use `0.5`, so it now matches them - a change from the previous
+version of this file, not from upstream, and it does change the default behaviour.
 
 Everything else is a transcription. All six losses are checked numerically against the
 original across shapes, a `delta`/`gamma` grid, degenerate labels, saturated predictions
