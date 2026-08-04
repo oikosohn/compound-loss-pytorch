@@ -26,24 +26,6 @@ def identify_axis(shape):
     else : raise ValueError('Metric: Shape of tensor is neither 2D or 3D.')
 
 
-# Channel-first is the one real difference from the tensorflow original, which makes a
-# still-channel-last tensor the easiest mistake to make and the hardest to notice: every
-# loss below happily returns a finite, plausible, wrong number for it. Same for a
-# multi-class tensor, whose classes beyond the first two are silently ignored.
-
-def check_input(y_pred, y_true):
-    if y_pred.shape != y_true.shape:
-        raise ValueError('Shape mismatch: y_pred is {}, y_true is {}.'
-                         .format(tuple(y_pred.shape), tuple(y_true.shape)))
-
-    identify_axis(y_pred.shape)
-
-    if y_pred.shape[1] != 2:
-        raise ValueError('Expected 2 channels (background, foreground) at dim 1, got {}. '
-                         'Tensors are channel-first: (N, C, H, W) or (N, C, D, H, W).'
-                         .format(y_pred.shape[1]))
-
-
 ################################
 #       Symmetric Focal loss   #
 ################################
@@ -65,9 +47,6 @@ class SymmetricFocalLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
-        check_input(y_pred, y_true)
-        y_true = y_true.to(y_pred.dtype)
-
         # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
@@ -103,9 +82,6 @@ class AsymmetricFocalLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
-        check_input(y_pred, y_true)
-        y_true = y_true.to(y_pred.dtype)
-
         # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
@@ -140,9 +116,6 @@ class SymmetricFocalTverskyLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
-        check_input(y_pred, y_true)
-        y_true = y_true.to(y_pred.dtype)
-
         # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         axis = identify_axis(y_true.size())
@@ -153,11 +126,9 @@ class SymmetricFocalTverskyLoss(nn.Module):
         fp = torch.sum((1-y_true) * y_pred, dim=axis)
         dice_class = (tp + self.epsilon)/(tp + self.delta*fn + (1-self.delta)*fp + self.epsilon)
 
-        # Calculate losses separately for each class, enhancing both classes.
-        # The original writes this as (1-d) * (1-d)**-gamma, which is 0 * inf -> NaN once
-        # a Dice score reaches exactly 1; the folded form is equal everywhere else.
-        back_dice = torch.pow(1-dice_class[:,0], 1-self.gamma)
-        fore_dice = torch.pow(1-dice_class[:,1], 1-self.gamma)
+        # Calculate losses separately for each class, enhancing both classes
+        back_dice = (1-dice_class[:,0]) * torch.pow(1-dice_class[:,0], -self.gamma)
+        fore_dice = (1-dice_class[:,1]) * torch.pow(1-dice_class[:,1], -self.gamma)
 
         # Average class scores
         return torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
@@ -184,9 +155,6 @@ class AsymmetricFocalTverskyLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
-        check_input(y_pred, y_true)
-        y_true = y_true.to(y_pred.dtype)
-
         # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         axis = identify_axis(y_true.size())
@@ -199,7 +167,7 @@ class AsymmetricFocalTverskyLoss(nn.Module):
 
         # Calculate losses separately for each class, only enhancing foreground class
         back_dice = 1-dice_class[:,0]
-        fore_dice = torch.pow(1-dice_class[:,1], 1-self.gamma)
+        fore_dice = (1-dice_class[:,1]) * torch.pow(1-dice_class[:,1], -self.gamma)
 
         # Average class scores
         return torch.mean(torch.stack([back_dice, fore_dice], dim=-1))

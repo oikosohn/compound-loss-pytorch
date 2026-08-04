@@ -29,37 +29,37 @@ loss = criterion(torch.softmax(logits, dim=1), y_true)
 ### Input contract
 `y_pred` is **softmax probabilities**, `y_true` is **one-hot labels**, both channel-first
 with exactly 2 channels: `(N, 2, H, W)` or `(N, 2, D, H, W)`, channel 0 background and
-channel 1 foreground. Integer and boolean labels are cast automatically.
+channel 1 foreground.
 
-These are the mistakes that used to return a plausible but wrong number, and now raise:
+Like the original, none of this is validated. These inputs return a finite, plausible,
+wrong number rather than raising:
 
-| Input | Result |
-| --- | --- |
-| `(N, H, W, C)` channel-last, as in the tensorflow original | `ValueError` |
-| `C != 2`, i.e. multi-class | `ValueError` - these losses are binary only, as in the original |
-| `y_pred` and `y_true` shapes differ | `ValueError` - previously broadcast silently |
-| Class-index labels `(N, H, W)` instead of one-hot | `ValueError` |
+- **Channel-last `(N, H, W, C)`** - the tensorflow habit, and
+  [issue #3](https://github.com/oikosohn/compound-loss-pytorch/issues/3) itself.
+- **`C != 2`** - these losses are binary only; channels past the first two are never scored.
+- **Mismatched `y_pred` / `y_true` shapes** - broadcasting quietly accepts several of them.
+- **Logits instead of probabilities** - clamped to `[epsilon, 1-epsilon]`. Apply
+  `torch.softmax(logits, dim=1)` first.
+- **`uint8` masks** - `-y_true` wraps 1 to 255, so anything with a cross-entropy term is
+  wrong. The Tversky losses are unaffected. Cast masks to float or a signed integer dtype;
+  `bool` raises rather than failing quietly.
 
-Two things are still on the caller, because neither can be checked without a pass over
-the data on every step:
+And two numerical edges, both matching the original:
 
-- **Logits instead of probabilities.** They are clamped to `[epsilon, 1-epsilon]` and
-  produce a finite, meaningless loss. Apply `torch.softmax(logits, dim=1)` first.
-- **`gamma >= 1` on the Focal Tversky losses** makes the loss diverge as the Dice score
-  approaches 1. The original behaves the same way; the useful range is `0 <= gamma < 1`.
+- **`gamma >= 1` on the Focal Tversky losses** diverges as the Dice score approaches 1.
+  The useful range is `0 <= gamma < 1`.
+- **`epsilon=0`** makes `(1-d) * (1-d)**-gamma` evaluate `0 * inf` at a perfect Dice score,
+  giving NaN.
 
 ### Differences from the tensorflow original
-- Tensors are channel-first, which fixes
-  [[Issue #3] Incompatible pytorch tensor shape](https://github.com/oikosohn/compound-loss-pytorch/issues/3).
-  The focal losses now also accept 3D volumes, which the original's hardcoded slicing does not.
-- In the Focal Tversky losses, `(1-d) * (1-d)**-gamma` is folded into the equivalent
-  `(1-d)**(1-gamma)`, which returns 0 instead of NaN when the Dice score reaches exactly 1.
-- `AsymmetricUnifiedFocalLoss` now defaults to `gamma=0.5`, matching the original (it was `0.2`).
-- The input validation above; the original has none.
+- Tensors are channel-first, which fixes issue #3. The focal losses accept 3D volumes too,
+  which the original's hardcoded slicing does not.
+- `AsymmetricUnifiedFocalLoss` defaults to `gamma=0.5`, matching the original (it was `0.2`).
 
-All six losses are checked numerically against the original tensorflow implementation
-across shapes, a `delta`/`gamma` grid, degenerate labels, and saturated predictions, plus
-`torch.autograd.gradcheck` on each.
+Everything else is a transcription. All six losses are checked numerically against the
+original across shapes, a `delta`/`gamma` grid, degenerate labels, saturated predictions
+and the edges above - including where the original returns NaN, which the port must too -
+plus `torch.autograd.gradcheck` on CPU and CUDA.
 
 ## References
 ```bibtex
