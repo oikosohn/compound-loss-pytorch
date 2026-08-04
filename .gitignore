@@ -112,3 +112,30 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# uv / dependency pinning (kept local, this repo ships loose files only)
+uv.lock
+pyproject.toml
+requirements*.txt
+.uv/
+
+# Local tests and scratch work
+test_*.py
+*_test.py
+tests/
+scratch/
+notebooks/
+
+# TensorFlow original, kept locally for reference only
+unified-focal-loss/
+loss_functions.py
+reference/
+
+# Editors, OS and agent tooling
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.claude/
+CLAUDE.md
+AGENTS.md

@@ -7,20 +7,34 @@ Jaccard CE Loss from [Feature Pyramid Network for Multi-Class Land Segmentation]
 
 
 ## [unified_focal_loss_pytorch.py](https://github.com/oikosohn/compound-loss-pytorch/blob/main/unified_focal_loss_pytorch.py)
-PyTorch implementation of [Unified Focal loss](https://arxiv.org/abs/2102.04525)
-- [Official tensorflow repository](https://github.com/mlyg/unified-focal-loss) 
+PyTorch implementation of [Unified Focal loss](https://arxiv.org/abs/2102.04525), ported from the
+[official tensorflow repository](https://github.com/mlyg/unified-focal-loss).
 
 Losses
-- Focal loss (symmetric and asymmetric)
-- Focal Tversky loss (symmetric and asymmetric)
-- Unified Focal loss (symmetric and asymmetric)
+- `SymmetricFocalLoss` / `AsymmetricFocalLoss`
+- `SymmetricFocalTverskyLoss` / `AsymmetricFocalTverskyLoss`
+- `SymmetricUnifiedFocalLoss` / `AsymmetricUnifiedFocalLoss`
 
-Todo
-- [ ] Fix [[Issue #3] Incompatible pytorch tensor shape](https://github.com/oikosohn/compound-loss-pytorch/issues/3)
-  - [X] SymmetricFocalLoss
-  - [X] AsymmetricFocalLoss
-  - [ ] SymmetricFocalTverskyLoss
-  - [ ] AsymmetricFocalTverskyLoss
+### Usage
+```python
+from unified_focal_loss_pytorch import AsymmetricUnifiedFocalLoss
+
+criterion = AsymmetricUnifiedFocalLoss(weight=0.5, delta=0.6, gamma=0.5)
+
+# y_pred: softmax probabilities, y_true: one-hot labels
+# (N, C, H, W) for 2D or (N, C, D, H, W) for 3D, channel 0 background / 1 foreground
+loss = criterion(torch.softmax(logits, dim=1), y_true)
+```
+
+### Differences from the tensorflow original
+- Tensors are channel-first (`(N, C, H, W)`), not channel-last, which fixes
+  [[Issue #3] Incompatible pytorch tensor shape](https://github.com/oikosohn/compound-loss-pytorch/issues/3).
+  The focal losses now also accept 3D volumes, which the original's hardcoded slicing does not.
+- In the Focal Tversky losses, `(1-d) * (1-d)**-gamma` is folded into the equivalent
+  `(1-d)**(1-gamma)`, which returns 0 instead of NaN when the Dice score reaches exactly 1.
+- `AsymmetricUnifiedFocalLoss` now defaults to `gamma=0.5`, matching the original (it was `0.2`).
+
+All six losses are checked numerically against the original tensorflow implementation.
 
 ## References
 ```bibtex
