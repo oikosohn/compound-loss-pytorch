@@ -42,9 +42,7 @@ wrong number rather than raising:
   `torch.softmax(logits, dim=1)` first.
 - **`uint8` masks** - `-y_true` wraps 1 to 255, so anything with a cross-entropy term is
   wrong. The Tversky losses never negate `y_true` and are unaffected. Cast masks to float
-  or a signed integer dtype; `bool` raises rather than failing quietly. This is the one
-  place the port is quieter than the original, which refuses to mix `uint8` with `float32`
-  at all.
+  or a signed integer dtype; `bool` raises rather than failing quietly.
 
 And two numerical edges, both matching the original:
 
