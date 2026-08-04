@@ -1,12 +1,11 @@
 """PyTorch port of the Unified Focal loss (https://arxiv.org/abs/2102.04525).
 
-Ported from the official TensorFlow implementation:
+Ported from the official tensorflow implementation:
 https://github.com/mlyg/unified-focal-loss
 
-Tensors use the PyTorch channel-first layout - (N, C, H, W) for 2D and
-(N, C, D, H, W) for 3D - instead of the channel-last layout of the original.
-`y_pred` holds softmax probabilities and `y_true` one-hot labels, with
-channel 0 as background and channel 1 as foreground.
+Tensors are channel-first - (N, C, H, W) for 2D and (N, C, D, H, W) for 3D - instead of
+the channel-last layout of the original. `y_pred` holds softmax probabilities and `y_true`
+one-hot labels, with channel 0 as background and channel 1 as foreground.
 """
 
 import torch
@@ -27,6 +26,27 @@ def identify_axis(shape):
     else : raise ValueError('Metric: Shape of tensor is neither 2D or 3D.')
 
 
+# Channel-first is the one real difference from the tensorflow original, which makes a
+# still-channel-last tensor the easiest mistake to make and the hardest to notice: every
+# loss below happily returns a finite, plausible, wrong number for it. Same for a
+# multi-class tensor, whose classes beyond the first two are silently ignored.
+
+def check_input(y_pred, y_true):
+    if y_pred.shape != y_true.shape:
+        raise ValueError('Shape mismatch: y_pred is {}, y_true is {}.'
+                         .format(tuple(y_pred.shape), tuple(y_true.shape)))
+
+    identify_axis(y_pred.shape)
+
+    if y_pred.shape[1] != 2:
+        raise ValueError('Expected 2 channels (background, foreground) at dim 1, got {}. '
+                         'Tensors are channel-first: (N, C, H, W) or (N, C, D, H, W).'
+                         .format(y_pred.shape[1]))
+
+
+################################
+#       Symmetric Focal loss   #
+################################
 class SymmetricFocalLoss(nn.Module):
     """
     Parameters
@@ -45,6 +65,10 @@ class SymmetricFocalLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
+        check_input(y_pred, y_true)
+        y_true = y_true.to(y_pred.dtype)
+
+        # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
 
@@ -58,6 +82,9 @@ class SymmetricFocalLoss(nn.Module):
         return torch.mean(back_ce + fore_ce)
 
 
+################################
+#     Asymmetric Focal loss    #
+################################
 class AsymmetricFocalLoss(nn.Module):
     """For Imbalanced datasets
     Parameters
@@ -76,6 +103,10 @@ class AsymmetricFocalLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
+        check_input(y_pred, y_true)
+        y_true = y_true.to(y_pred.dtype)
+
+        # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         cross_entropy = -y_true * torch.log(y_pred)
 
@@ -88,6 +119,9 @@ class AsymmetricFocalLoss(nn.Module):
         return torch.mean(back_ce + fore_ce)
 
 
+#################################
+# Symmetric Focal Tversky loss  #
+#################################
 class SymmetricFocalTverskyLoss(nn.Module):
     """This is the implementation for binary segmentation.
     Parameters
@@ -106,6 +140,10 @@ class SymmetricFocalTverskyLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
+        check_input(y_pred, y_true)
+        y_true = y_true.to(y_pred.dtype)
+
+        # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         axis = identify_axis(y_true.size())
 
@@ -116,7 +154,8 @@ class SymmetricFocalTverskyLoss(nn.Module):
         dice_class = (tp + self.epsilon)/(tp + self.delta*fn + (1-self.delta)*fp + self.epsilon)
 
         # Calculate losses separately for each class, enhancing both classes.
-        # (1-d) * (1-d)**-gamma is folded into (1-d)**(1-gamma) to avoid 0 * inf when d == 1.
+        # The original writes this as (1-d) * (1-d)**-gamma, which is 0 * inf -> NaN once
+        # a Dice score reaches exactly 1; the folded form is equal everywhere else.
         back_dice = torch.pow(1-dice_class[:,0], 1-self.gamma)
         fore_dice = torch.pow(1-dice_class[:,1], 1-self.gamma)
 
@@ -124,6 +163,9 @@ class SymmetricFocalTverskyLoss(nn.Module):
         return torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
 
 
+#################################
+# Asymmetric Focal Tversky loss #
+#################################
 class AsymmetricFocalTverskyLoss(nn.Module):
     """This is the implementation for binary segmentation.
     Parameters
@@ -142,6 +184,9 @@ class AsymmetricFocalTverskyLoss(nn.Module):
         self.epsilon = epsilon
 
     def forward(self, y_pred, y_true):
+        check_input(y_pred, y_true)
+        y_true = y_true.to(y_pred.dtype)
+
         # Clip values to prevent division by zero error
         y_pred = torch.clamp(y_pred, self.epsilon, 1. - self.epsilon)
         axis = identify_axis(y_true.size())
@@ -160,6 +205,9 @@ class AsymmetricFocalTverskyLoss(nn.Module):
         return torch.mean(torch.stack([back_dice, fore_dice], dim=-1))
 
 
+###########################################
+#      Symmetric Unified Focal loss       #
+###########################################
 class SymmetricUnifiedFocalLoss(nn.Module):
     """The Unified Focal loss is a new compound loss function that unifies Dice-based and cross entropy-based loss functions into a single framework.
     Parameters
@@ -178,13 +226,21 @@ class SymmetricUnifiedFocalLoss(nn.Module):
         self.symmetric_fl = SymmetricFocalLoss(delta=delta, gamma=gamma)
 
     def forward(self, y_pred, y_true):
+        # Obtain Symmetric Focal Tversky loss
         symmetric_ftl = self.symmetric_ftl(y_pred, y_true)
+
+        # Obtain Symmetric Focal loss
         symmetric_fl = self.symmetric_fl(y_pred, y_true)
+
+        # Return weighted sum of Symmetric Focal loss and Symmetric Focal Tversky loss
         if self.weight is not None:
             return (self.weight * symmetric_ftl) + ((1-self.weight) * symmetric_fl)
         return symmetric_ftl + symmetric_fl
 
 
+###########################################
+#      Asymmetric Unified Focal loss      #
+###########################################
 class AsymmetricUnifiedFocalLoss(nn.Module):
     """The Unified Focal loss is a new compound loss function that unifies Dice-based and cross entropy-based loss functions into a single framework.
     Parameters
@@ -209,7 +265,7 @@ class AsymmetricUnifiedFocalLoss(nn.Module):
         # Obtain Asymmetric Focal loss
         asymmetric_fl = self.asymmetric_fl(y_pred, y_true)
 
-        # Return weighted sum of Asymmetrical Focal loss and Asymmetric Focal Tversky loss
+        # Return weighted sum of Asymmetric Focal loss and Asymmetric Focal Tversky loss
         if self.weight is not None:
             return (self.weight * asymmetric_ftl) + ((1-self.weight) * asymmetric_fl)
         return asymmetric_ftl + asymmetric_fl

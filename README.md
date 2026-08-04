@@ -26,15 +26,40 @@ criterion = AsymmetricUnifiedFocalLoss(weight=0.5, delta=0.6, gamma=0.5)
 loss = criterion(torch.softmax(logits, dim=1), y_true)
 ```
 
+### Input contract
+`y_pred` is **softmax probabilities**, `y_true` is **one-hot labels**, both channel-first
+with exactly 2 channels: `(N, 2, H, W)` or `(N, 2, D, H, W)`, channel 0 background and
+channel 1 foreground. Integer and boolean labels are cast automatically.
+
+These are the mistakes that used to return a plausible but wrong number, and now raise:
+
+| Input | Result |
+| --- | --- |
+| `(N, H, W, C)` channel-last, as in the tensorflow original | `ValueError` |
+| `C != 2`, i.e. multi-class | `ValueError` - these losses are binary only, as in the original |
+| `y_pred` and `y_true` shapes differ | `ValueError` - previously broadcast silently |
+| Class-index labels `(N, H, W)` instead of one-hot | `ValueError` |
+
+Two things are still on the caller, because neither can be checked without a pass over
+the data on every step:
+
+- **Logits instead of probabilities.** They are clamped to `[epsilon, 1-epsilon]` and
+  produce a finite, meaningless loss. Apply `torch.softmax(logits, dim=1)` first.
+- **`gamma >= 1` on the Focal Tversky losses** makes the loss diverge as the Dice score
+  approaches 1. The original behaves the same way; the useful range is `0 <= gamma < 1`.
+
 ### Differences from the tensorflow original
-- Tensors are channel-first (`(N, C, H, W)`), not channel-last, which fixes
+- Tensors are channel-first, which fixes
   [[Issue #3] Incompatible pytorch tensor shape](https://github.com/oikosohn/compound-loss-pytorch/issues/3).
   The focal losses now also accept 3D volumes, which the original's hardcoded slicing does not.
 - In the Focal Tversky losses, `(1-d) * (1-d)**-gamma` is folded into the equivalent
   `(1-d)**(1-gamma)`, which returns 0 instead of NaN when the Dice score reaches exactly 1.
 - `AsymmetricUnifiedFocalLoss` now defaults to `gamma=0.5`, matching the original (it was `0.2`).
+- The input validation above; the original has none.
 
-All six losses are checked numerically against the original tensorflow implementation.
+All six losses are checked numerically against the original tensorflow implementation
+across shapes, a `delta`/`gamma` grid, degenerate labels, and saturated predictions, plus
+`torch.autograd.gradcheck` on each.
 
 ## References
 ```bibtex
