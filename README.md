@@ -33,8 +33,11 @@ criterion = AsymmetricUnifiedFocalLoss(weight=0.5, delta=0.6, gamma=0.5)
 loss = criterion(torch.softmax(logits, dim=1), y_true)
 ```
 
-`AsymmetricUnifiedFocalLoss` defaulted to `gamma=0.2` in this file until now. The original
-and the paper both use `0.5`, so it now matches them - this changes existing behaviour.
+### Notes
+- `y_true` must be float or a signed integer. Negating a `uint8` mask wraps 1 to 255, so
+  every loss with a cross-entropy term comes out negative.
+- `AsymmetricUnifiedFocalLoss` defaulted to `gamma=0.2` in this file until now. The original
+  and the paper both use `0.5`, so it now matches them - this changes existing behaviour.
 
 ## References
 ```bibtex
