@@ -52,11 +52,17 @@ And two numerical edges, both matching the original:
   giving NaN.
 
 ### Relationship to the tensorflow original
-The only intentional change is the tensor layout. PyTorch convolutions emit `(N, C, H, W)`
-where Keras emits `(N, H, W, C)`, so the spatial axes move from `[1,2]` to `[2,3]` and the
-class slice from `y_pred[:,:,:,0]` to `y_pred[:,0]`. Both express the same thing; keeping
-the original's literal indices is what produced issue #3. As a side effect the focal losses
-work on 3D volumes, which the original's hardcoded slicing does not.
+Two intentional changes, neither of which moves a number.
+
+The tensor layout. PyTorch convolutions emit `(N, C, H, W)` where Keras emits
+`(N, H, W, C)`, so the spatial axes move from `[1,2]` to `[2,3]` and the class slice from
+`y_pred[:,:,:,0]` to `y_pred[:,0]`. Both express the same thing; keeping the original's
+literal indices is what produced issue #3. As a side effect the focal losses work on 3D
+volumes, which the original's hardcoded slicing does not.
+
+The argument order. The original is called `loss_function(y_true, y_pred)`, the Keras
+convention; these take `forward(y_pred, y_true)` to match `torch.nn` losses. Only the call
+site differs, but the original's examples do not transfer verbatim.
 
 `AsymmetricUnifiedFocalLoss` had `gamma=0.2` in this file from its first commit. The
 original and the paper both use `0.5`, so it now matches them - a change from the previous
