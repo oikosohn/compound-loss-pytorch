@@ -10,10 +10,17 @@ Jaccard CE Loss from [Feature Pyramid Network for Multi-Class Land Segmentation]
 PyTorch implementation of [Unified Focal loss](https://arxiv.org/abs/2102.04525), ported from the
 [official tensorflow repository](https://github.com/mlyg/unified-focal-loss).
 
-Losses
+All twelve functions of the original's `loss_functions.py`, in the same order.
+
+The Unified Focal loss
 - `SymmetricFocalLoss` / `AsymmetricFocalLoss`
 - `SymmetricFocalTverskyLoss` / `AsymmetricFocalTverskyLoss`
 - `SymmetricUnifiedFocalLoss` / `AsymmetricUnifiedFocalLoss`
+
+The baselines the paper compares against
+- `DiceLoss` / `TverskyLoss` - the same formula, `delta` 0.5 against 0.7
+- `FocalTverskyLoss` / `FocalLoss` / `ComboLoss`
+- `DiceCoefficient` - a metric, not a loss: it rises as the prediction improves
 
 ### Usage
 ```python
@@ -27,22 +34,26 @@ loss = criterion(torch.softmax(logits, dim=1), y_true)
 ```
 
 ### Input contract
-`y_pred` is **softmax probabilities**, `y_true` is **one-hot labels**, both channel-first
-with exactly 2 channels: `(N, 2, H, W)` or `(N, 2, D, H, W)`, channel 0 background and
-channel 1 foreground.
+`y_pred` is **softmax probabilities**, `y_true` is **one-hot labels**, both channel-first:
+`(N, C, H, W)` or `(N, C, D, H, W)`, channel 0 background and channel 1 foreground.
+
+The Unified Focal family is binary only and reads exactly two channels. The baselines
+average over every channel, so any `C` works there - except `ComboLoss`, whose `beta`
+weight is a pair and so needs `C == 2`.
 
 Like the original, none of this is validated. These inputs return a finite, plausible,
 wrong number rather than raising:
 
 - **Channel-last `(N, H, W, C)`** - the tensorflow habit, and
   [issue #3](https://github.com/oikosohn/compound-loss-pytorch/issues/3) itself.
-- **`C != 2`** - these losses are binary only; channels past the first two are never scored.
+- **`C != 2` on the Unified Focal family** - channels past the first two are never scored.
 - **Mismatched `y_pred` / `y_true` shapes** - broadcasting quietly accepts several of them.
 - **Logits instead of probabilities** - clamped to `[epsilon, 1-epsilon]`. Apply
   `torch.softmax(logits, dim=1)` first.
 - **`uint8` masks** - `-y_true` wraps 1 to 255, so anything with a cross-entropy term is
-  wrong. The Tversky losses never negate `y_true` and are unaffected. Cast masks to float
-  or a signed integer dtype; `bool` raises rather than failing quietly.
+  wrong. The Dice and Tversky losses never negate `y_true` and are unaffected. Cast masks
+  to float or a signed integer dtype; `bool` raises rather than failing quietly.
+- **Minimising `DiceCoefficient`** - it is the score, not the loss. `DiceLoss` is the loss.
 
 And two numerical edges, both matching the original:
 
@@ -68,10 +79,10 @@ site differs, but the original's examples do not transfer verbatim.
 original and the paper both use `0.5`, so it now matches them - a change from the previous
 version of this file, not from upstream, and it does change the default behaviour.
 
-Everything else is a transcription. All six losses are checked numerically against the
-original across shapes, a `delta`/`gamma` grid, degenerate labels, saturated predictions
-and the edges above - including where the original returns NaN, which the port must too -
-plus `torch.autograd.gradcheck` on CPU and CUDA.
+Everything else is a transcription. All twelve are checked numerically against the original
+across shapes, parameter grids, degenerate labels, saturated predictions and the edges
+above - including where the original returns NaN, which the port must too - plus
+`torch.autograd.gradcheck` on CPU and CUDA.
 
 ## References
 ```bibtex
