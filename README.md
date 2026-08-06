@@ -33,21 +33,6 @@ criterion = AsymmetricUnifiedFocalLoss(weight=0.5, delta=0.6, gamma=0.5)
 loss = criterion(torch.softmax(logits, dim=1), y_true)
 ```
 
-### Coming from the tensorflow original
-Everything is a transcription except the layout and the argument order, and neither moves
-a number.
-
-Tensors are channel-first. Keras emits `(N, H, W, C)`, PyTorch `(N, C, H, W)`, so the
-spatial axes move from `[1,2]` to `[2,3]` and the class slice from `y_pred[:,:,:,0]` to
-`y_pred[:,0]`. Passing a channel-last tensor is
-[issue #3](https://github.com/oikosohn/compound-loss-pytorch/issues/3): nothing raises,
-the number is just wrong. Nothing else is validated either, exactly as in the original -
-logits instead of probabilities are silently clamped, and a `uint8` mask makes `-y_true`
-wrap 1 to 255, which breaks every loss with a cross-entropy term.
-
-Losses are called `criterion(y_pred, y_true)` to match `torch.nn`, where the original takes
-`(y_true, y_pred)`. Its examples do not transfer verbatim.
-
 `AsymmetricUnifiedFocalLoss` defaulted to `gamma=0.2` in this file until now. The original
 and the paper both use `0.5`, so it now matches them - this changes existing behaviour.
 
