@@ -12,7 +12,7 @@ PyTorch implementation of [Unified Focal loss](https://arxiv.org/abs/2102.04525)
 
 All twelve functions of the original's `loss_functions.py`, in the same order.
 
-The Unified Focal loss
+The Unified Focal loss - binary only, channel 0 background and channel 1 foreground
 - `SymmetricFocalLoss` / `AsymmetricFocalLoss`
 - `SymmetricFocalTverskyLoss` / `AsymmetricFocalTverskyLoss`
 - `SymmetricUnifiedFocalLoss` / `AsymmetricUnifiedFocalLoss`
@@ -33,56 +33,23 @@ criterion = AsymmetricUnifiedFocalLoss(weight=0.5, delta=0.6, gamma=0.5)
 loss = criterion(torch.softmax(logits, dim=1), y_true)
 ```
 
-### Input contract
-`y_pred` is **softmax probabilities**, `y_true` is **one-hot labels**, both channel-first:
-`(N, C, H, W)` or `(N, C, D, H, W)`, channel 0 background and channel 1 foreground.
+### Coming from the tensorflow original
+Everything is a transcription except the layout and the argument order, and neither moves
+a number.
 
-The Unified Focal family is binary only and reads exactly two channels. The baselines
-average over every channel, so any `C` works there - except `ComboLoss`, whose `beta`
-weight is a pair and so needs `C == 2`.
+Tensors are channel-first. Keras emits `(N, H, W, C)`, PyTorch `(N, C, H, W)`, so the
+spatial axes move from `[1,2]` to `[2,3]` and the class slice from `y_pred[:,:,:,0]` to
+`y_pred[:,0]`. Passing a channel-last tensor is
+[issue #3](https://github.com/oikosohn/compound-loss-pytorch/issues/3): nothing raises,
+the number is just wrong. Nothing else is validated either, exactly as in the original -
+logits instead of probabilities are silently clamped, and a `uint8` mask makes `-y_true`
+wrap 1 to 255, which breaks every loss with a cross-entropy term.
 
-Like the original, none of this is validated. These inputs return a finite, plausible,
-wrong number rather than raising:
+Losses are called `criterion(y_pred, y_true)` to match `torch.nn`, where the original takes
+`(y_true, y_pred)`. Its examples do not transfer verbatim.
 
-- **Channel-last `(N, H, W, C)`** - the tensorflow habit, and
-  [issue #3](https://github.com/oikosohn/compound-loss-pytorch/issues/3) itself.
-- **`C != 2` on the Unified Focal family** - channels past the first two are never scored.
-- **Mismatched `y_pred` / `y_true` shapes** - broadcasting quietly accepts several of them.
-- **Logits instead of probabilities** - clamped to `[epsilon, 1-epsilon]`. Apply
-  `torch.softmax(logits, dim=1)` first.
-- **`uint8` masks** - `-y_true` wraps 1 to 255, so anything with a cross-entropy term is
-  wrong. The Dice and Tversky losses never negate `y_true` and are unaffected. Cast masks
-  to float or a signed integer dtype; `bool` raises rather than failing quietly.
-- **Minimising `DiceCoefficient`** - it is the score, not the loss. `DiceLoss` is the loss.
-
-And two numerical edges, both matching the original:
-
-- **`gamma >= 1` on the Focal Tversky losses** diverges as the Dice score approaches 1.
-  The useful range is `0 <= gamma < 1`.
-- **`epsilon=0`** makes `(1-d) * (1-d)**-gamma` evaluate `0 * inf` at a perfect Dice score,
-  giving NaN.
-
-### Relationship to the tensorflow original
-Two intentional changes, neither of which moves a number.
-
-The tensor layout. PyTorch convolutions emit `(N, C, H, W)` where Keras emits
-`(N, H, W, C)`, so the spatial axes move from `[1,2]` to `[2,3]` and the class slice from
-`y_pred[:,:,:,0]` to `y_pred[:,0]`. Both express the same thing; keeping the original's
-literal indices is what produced issue #3. As a side effect the focal losses work on 3D
-volumes, which the original's hardcoded slicing does not.
-
-The argument order. The original is called `loss_function(y_true, y_pred)`, the Keras
-convention; these take `forward(y_pred, y_true)` to match `torch.nn` losses. Only the call
-site differs, but the original's examples do not transfer verbatim.
-
-`AsymmetricUnifiedFocalLoss` had `gamma=0.2` in this file from its first commit. The
-original and the paper both use `0.5`, so it now matches them - a change from the previous
-version of this file, not from upstream, and it does change the default behaviour.
-
-Everything else is a transcription. All twelve are checked numerically against the original
-across shapes, parameter grids, degenerate labels, saturated predictions and the edges
-above - including where the original returns NaN, which the port must too - plus
-`torch.autograd.gradcheck` on CPU and CUDA.
+`AsymmetricUnifiedFocalLoss` defaulted to `gamma=0.2` in this file until now. The original
+and the paper both use `0.5`, so it now matches them - this changes existing behaviour.
 
 ## References
 ```bibtex
